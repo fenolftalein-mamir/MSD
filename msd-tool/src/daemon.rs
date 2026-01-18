@@ -329,7 +329,6 @@ fn handle_request(request: &Request) -> Response {
 }
 
 fn handle_client(mut stream: UnixStream) -> Result<()> {
-    check_selinux()?;
     negotiate_protocol(&mut stream)?;
 
     loop {
