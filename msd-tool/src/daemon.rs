@@ -66,35 +66,6 @@ pub fn socket_addr() -> SocketAddr {
     SocketAddr::from_abstract_name("msdd").expect("Invalid abstract socket name")
 }
 
-/// Check that SELinux is enabled, enforcing, and that the policy seems to be
-/// correct. This acts as a sanity check since we rely on SELinux for access
-/// control.
-fn check_selinux() -> Result<()> {
-    let path = Path::new(SELINUX_ENFORCE);
-
-    let mut file = File::open(path)
-        .and_then(|f| util::check_fs_magic(f, util::SELINUX_MAGIC))
-        .with_context(|| format!("Failed to open file: {path:?}"))?;
-
-    let value = file
-        .read_u8()
-        .with_context(|| format!("Failed to read file: {path:?}"))?;
-
-    if value != b'1' {
-        bail!("Denying connection because SELinux is not enforcing");
-    }
-
-    // Our policy denies connections to ourselves. Try it to test that the
-    // policy is actually loaded.
-    match UnixStream::connect_addr(&socket_addr()) {
-        Ok(_) => bail!("Denying connection because SELinux policy is broken"),
-        Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {}
-        Err(e) => return Err(e).context("Self connection failed for unexpected reason"),
-    }
-
-    Ok(())
-}
-
 #[cfg(target_os = "android")]
 fn usb_controller() -> Result<Option<String>> {
     const PROPERTY: &str = "sys.usb.controller";
